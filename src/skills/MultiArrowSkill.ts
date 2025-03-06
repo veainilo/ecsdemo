@@ -68,7 +68,7 @@ export class MultiArrowSkill extends BaseSkill {
     });
     arrow.addComponent<Arrow>({
       type: 'arrow',
-      damage: this.config.damage,
+      damage: this.config.damage ?? 20,
       speed: arrowSpeed,
       targetEntity: target,
       sourceEntity: source,

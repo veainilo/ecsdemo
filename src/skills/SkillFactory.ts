@@ -1,6 +1,7 @@
 import { World } from '../core/ECS/World';
 import { BaseSkill } from './BaseSkill';
 import { MultiArrowSkill } from './MultiArrowSkill';
+import { ThunderStrikeSkill } from './ThunderStrikeSkill';
 
 export enum SkillType {
   MULTI_ARROW = 'MULTI_ARROW',
@@ -75,6 +76,13 @@ export class SkillFactory {
       SkillType.MULTI_ARROW,
       new MultiArrowSkill(this.world, SKILL_CONFIGS[SkillType.MULTI_ARROW])
     );
+
+    // 初始化雷击技能
+    this.skillInstances.set(
+      SkillType.THUNDER_STRIKE,
+      new ThunderStrikeSkill(this.world, SKILL_CONFIGS[SkillType.THUNDER_STRIKE])
+    );
+
     // TODO: 初始化其他技能
   }
 
