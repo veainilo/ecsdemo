@@ -9,7 +9,8 @@ export enum SkillType {
   FIREBALL = 'FIREBALL',
   FROST_NOVA = 'FROST_NOVA',
   POISON_CLOUD = 'POISON_CLOUD',
-  HEALING_AURA = 'HEALING_AURA'
+  HEALING_AURA = 'HEALING_AURA',
+  TORNADO = 'TORNADO'
 }
 
 export interface SkillConfig {
@@ -20,6 +21,7 @@ export interface SkillConfig {
   healing?: number;
   duration?: number;
   projectileSpeed?: number;
+  moveSpeed?: number;
 }
 
 export const SKILL_CONFIGS: Record<SkillType, SkillConfig> = {
@@ -60,6 +62,14 @@ export const SKILL_CONFIGS: Record<SkillType, SkillConfig> = {
     healing: 20,
     aoeRadius: 80,
     duration: 5
+  },
+  [SkillType.TORNADO]: {
+    cooldown: 10,
+    range: 300,
+    damage: 15,
+    aoeRadius: 40,
+    duration: 8,
+    moveSpeed: 100
   }
 };
 

@@ -1,6 +1,6 @@
 import { World } from './core/ECS/World';
 import { SystemGroup } from './core/ECS/SystemGroup';
-import { SystemGroupType, SystemPriority } from './core/ECS/Types';
+import { SystemGroupType, SystemPriority, Entity, QueryBuilder } from './core/ECS/Types';
 import { Position, Velocity, Unit, Sprite } from './components';
 import {
     MovementSystem,
@@ -12,6 +12,7 @@ import {
 } from './systems';
 import { EventSystem } from './core/ECS/EventSystem';
 import { ProjectileSystem } from './systems/ProjectileSystem';
+import { TornadoSystem } from './systems/TornadoSystem';
 
 // 创建世界实例
 const world = new World();
@@ -36,6 +37,7 @@ mainGroup.addSystem('ai', new AIControlSystem(world));
 mainGroup.addSystem('combat', new CombatSystem(world));
 mainGroup.addSystem('skill', skillSystem);
 mainGroup.addSystem('projectile', projectileSystem);
+mainGroup.addSystem('tornado', new TornadoSystem(world));
 mainGroup.addSystem('render', new RenderSystem(world));
 
 // 创建单位
@@ -43,16 +45,33 @@ function createUnit(x: number, y: number, isPlayer: boolean) {
     const entity = world.createEntity();
     entity.addComponent<Position>({ type: 'position', x, y });
     entity.addComponent<Velocity>({ type: 'velocity', vx: 0, vy: 0 });
-    entity.addComponent<Unit>({
-        type: 'unit',
-        health: 100,
-        maxHealth: 100,
-        attackRange: 200,
-        attackCooldown: 1,
-        currentCooldown: 0,
-        speed: 2,
-        isPlayer
-    });
+
+    if (isPlayer) {
+        entity.addComponent<Unit>({
+            type: 'unit',
+            health: 1000,
+            maxHealth: 1000,
+            attackRange: 200,
+            attackCooldown: 1,
+            currentCooldown: 0,
+            speed: 3,
+            isPlayer: true
+        });
+    }
+    else {
+        entity.addComponent<Unit>({
+            type: 'unit',
+            health: 100,
+            maxHealth: 100,
+            attackRange: 200,
+            attackCooldown: 2,
+            currentCooldown: 0,
+            speed: 2,
+            isPlayer: false
+        });
+    }
+
+
     entity.addComponent<Sprite>({
         type: 'sprite',
         width: 20,
@@ -95,6 +114,38 @@ function init() {
 
     gameLoop();
 }
+
+// 重启游戏
+function restartGame() {
+    // 获取所有实体并销毁它们
+    const entities = world.query(new QueryBuilder().build());
+    entities.forEach(entity => {
+        entity.destroy();
+    });
+
+    // 重新初始化游戏
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+    if (canvas) {
+        // 创建玩家单位
+        createUnit(canvas.width / 2, canvas.height / 2, true);
+
+        // 创建AI单位
+        for (let i = 0; i < 10; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            createUnit(x, y, false);
+        }
+    }
+}
+
+// 监听单位死亡事件
+eventSystem.on('unit_died', (data: { unit: Entity, killer: Entity }) => {
+    const unit = data.unit.getComponent<Unit>('unit');
+    if (unit?.isPlayer) {
+        // 如果死亡的是玩家，立即重启游戏
+        setTimeout(restartGame, 100); // 短暂延迟以确保死亡效果可见
+    }
+});
 
 // 启动程序
 init(); 
