@@ -66,14 +66,14 @@ export class MultiArrowSkill extends BaseSkill {
     const totalFlightTime = distance / this.ARROW_SPEED;
 
     const arrow = this.world.createEntity();
-    
+
     // 基础组件
-    arrow.addComponent<Position>({ 
-      type: 'position', 
-      x: sourcePos.x, 
-      y: sourcePos.y 
+    arrow.addComponent<Position>({
+      type: 'position',
+      x: sourcePos.x,
+      y: sourcePos.y
     });
-    
+
     arrow.addComponent<Velocity>({
       type: 'velocity',
       vx: (dx / distance) * this.ARROW_SPEED,
@@ -111,8 +111,8 @@ export class MultiArrowSkill extends BaseSkill {
     // 视觉组件
     arrow.addComponent<Sprite>({
       type: 'sprite',
-      width: 30,
-      height: 6,
+      width: 5,
+      height: 5,
       color: '#FFA500',
       rotation: Math.atan2(dy, dx)
     });
