@@ -6,6 +6,7 @@ export class MultiArrowSkill extends BaseSkill {
   private readonly SPREAD_ANGLE = Math.PI / 6;
   private readonly OFFSET_DISTANCE = 150;
   private readonly BOUNCE_COUNT = 2;
+  private readonly DEFAULT_DAMAGE = 20;
 
   cast(source: Entity, target: Entity): void {
     const [sourcePos, targetPos] = this.getPositions(source, target);
@@ -59,6 +60,11 @@ export class MultiArrowSkill extends BaseSkill {
     const distance = Math.sqrt(dx * dx + dy * dy);
     const arrowSpeed = 8;
 
+    // 计算抛物线参数
+    const gravity = 9.8;  // 重力加速度
+    const maxHeight = Math.min(distance * 0.25, 100); // 最大高度为距离的1/4，但不超过100
+    const totalFlightTime = distance / arrowSpeed; // 预计飞行时间
+
     const arrow = this.world.createEntity();
     arrow.addComponent<Position>({ type: 'position', x: sourcePos.x, y: sourcePos.y });
     arrow.addComponent<Velocity>({
@@ -68,13 +74,18 @@ export class MultiArrowSkill extends BaseSkill {
     });
     arrow.addComponent<Arrow>({
       type: 'arrow',
-      damage: this.config.damage ?? 20,
+      damage: this.config.damage ?? this.DEFAULT_DAMAGE,
       speed: arrowSpeed,
       targetEntity: target,
       sourceEntity: source,
       bounceCount: this.BOUNCE_COUNT,
       maxBounceCount: this.BOUNCE_COUNT,
-      hitEntities: new Set([source])
+      hitEntities: new Set([source]),
+      initialHeight: sourcePos.y,
+      maxHeight: maxHeight,
+      gravity: gravity,
+      flightTime: 0,
+      totalFlightTime: totalFlightTime
     });
     arrow.addComponent<Sprite>({
       type: 'sprite',

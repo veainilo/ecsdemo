@@ -1,6 +1,6 @@
 import { ISystem, SystemPriority, QueryBuilder, Entity } from '../core/ECS/Types';
 import { World } from '../core/ECS/World';
-import { Position, Arrow, Velocity, Sprite, Unit } from '../components';
+import { Position, Arrow, Velocity, Sprite, Unit, Trail } from '../components';
 import { SkillFactory, SkillType, SkillConfig } from '../skills/SkillFactory';
 import { SkillRequest, SkillState } from '../components/SkillComponents';
 
@@ -83,23 +83,59 @@ export class SkillSystem implements ISystem {
   private updateProjectile(entity: Entity): void {
     const arrow = entity.getComponent<Arrow>('arrow');
     const position = entity.getComponent<Position>('position');
+    const velocity = entity.getComponent<Velocity>('velocity');
+    const sprite = entity.getComponent<Sprite>('sprite');
+    const trail = entity.getComponent<Trail>('trail');
     
-    if (!arrow || !position) return;
+    if (!arrow || !position || !velocity || !sprite) return;
 
     const targetPos = arrow.targetEntity.getComponent<Position>('position');
     if (!targetPos) {
-      entity.destroy();
-      return;
+        entity.destroy();
+        return;
     }
 
+    // 更新飞行时间
+    arrow.flightTime += 1/60; // 假设60帧每秒
+
+    // 计算水平运动
     const dx = targetPos.x - position.x;
     const dy = targetPos.y - position.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
+    // 计算抛物线高度
+    const t = arrow.flightTime / arrow.totalFlightTime; // 归一化时间 (0-1)
+    const heightOffset = this.calculateParabolicHeight(t, arrow.maxHeight);
+    
+    // 更新位置
+    position.x += velocity.vx;
+    position.y += velocity.vy;
+    position.y -= heightOffset - this.calculateParabolicHeight((t - 1/60), arrow.maxHeight); // 应用高度偏移
+
+    // 更新箭矢旋转
+    const nextHeightOffset = this.calculateParabolicHeight(t + 1/60, arrow.maxHeight);
+    const angleY = (nextHeightOffset - heightOffset) * 60; // 垂直速度
+    sprite.rotation = Math.atan2(velocity.vy + angleY, velocity.vx);
+
+    // 更新轨迹
+    if (trail) {
+        trail.points.unshift({ x: position.x, y: position.y });
+        if (trail.points.length > trail.maxPoints) {
+            trail.points.pop();
+        }
+    }
+
     // 检查是否命中目标
     if (distance < 20) {
-      this.handleProjectileHit(entity, arrow);
+        this.handleProjectileHit(entity, arrow);
     }
+  }
+
+  private calculateParabolicHeight(t: number, maxHeight: number): number {
+    // 使用二次函数计算抛物线高度
+    // h = 4 * maxHeight * t * (1 - t)
+    // 这个公式在 t=0 和 t=1 时高度为0，在 t=0.5 时达到最大高度
+    return 4 * maxHeight * t * (1 - t);
   }
 
   private handleProjectileHit(entity: Entity, arrow: Arrow): void {
