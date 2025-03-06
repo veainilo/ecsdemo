@@ -1,8 +1,14 @@
 import { World } from './core/ECS/World';
 import { SystemGroup } from './core/ECS/SystemGroup';
 import { SystemGroupType, SystemPriority } from './core/ECS/Types';
-import { Position, Velocity, Circle } from './components';
-import { MovementSystem, BounceSystem, RenderSystem } from './systems';
+import { Position, Velocity, Unit, Sprite } from './components';
+import {
+    MovementSystem,
+    PlayerControlSystem,
+    AIControlSystem,
+    CombatSystem,
+    RenderSystem
+} from './systems';
 
 // 创建世界实例
 const world = new World();
@@ -12,51 +18,67 @@ const mainGroup = new SystemGroup(SystemGroupType.CUSTOM, SystemPriority.NORMAL)
 
 // 添加系统到系统组
 mainGroup.addSystem('movement', new MovementSystem(world));
-mainGroup.addSystem('bounce', new BounceSystem(world));
+mainGroup.addSystem('player', new PlayerControlSystem(world));
+mainGroup.addSystem('ai', new AIControlSystem(world));
+mainGroup.addSystem('combat', new CombatSystem(world));
 mainGroup.addSystem('render', new RenderSystem(world));
 
-// 创建小球
-function createBall(x: number, y: number, vx: number, vy: number, radius: number, color: string) {
-  const entity = world.createEntity();
-  entity.addComponent<Position>({ type: 'position', x, y });
-  entity.addComponent<Velocity>({ type: 'velocity', vx, vy });
-  entity.addComponent<Circle>({ type: 'circle', radius, color });
-  return entity;
+// 创建单位
+function createUnit(x: number, y: number, isPlayer: boolean) {
+    const entity = world.createEntity();
+    entity.addComponent<Position>({ type: 'position', x, y });
+    entity.addComponent<Velocity>({ type: 'velocity', vx: 0, vy: 0 });
+    entity.addComponent<Unit>({
+        type: 'unit',
+        health: 100,
+        maxHealth: 100,
+        attackRange: 200,
+        attackCooldown: 1,
+        currentCooldown: 0,
+        speed: 2,
+        isPlayer
+    });
+    entity.addComponent<Sprite>({
+        type: 'sprite',
+        width: 20,
+        height: 20,
+        color: isPlayer ? '#00FF00' : '#FF0000',
+        rotation: 0
+    });
+    return entity;
 }
 
 // 初始化
 function init() {
-  // 创建画布
-  const canvas = document.createElement('canvas');
-  canvas.id = 'canvas';
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  document.body.appendChild(canvas);
-  
-  // 创建多个小球
-  const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD'];
-  for (let i = 0; i < 50; i++) {
-    const radius = Math.random() * 10 + 5;
-    const x = Math.random() * (canvas.width - radius * 2) + radius;
-    const y = Math.random() * (canvas.height - radius * 2) + radius;
-    const vx = (Math.random() - 0.5) * 5;
-    const vy = (Math.random() - 0.5) * 5;
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    createBall(x, y, vx, vy, radius, color);
-  }
-  
-  // 游戏循环
-  let lastTime = performance.now();
-  function gameLoop() {
-    const currentTime = performance.now();
-    const deltaTime = (currentTime - lastTime) / 1000;
-    lastTime = currentTime;
-    
-    mainGroup.update(deltaTime);
-    requestAnimationFrame(gameLoop);
-  }
-  
-  gameLoop();
+    // 创建画布
+    const canvas = document.createElement('canvas');
+    canvas.id = 'canvas';
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    document.body.appendChild(canvas);
+
+    // 创建玩家单位
+    createUnit(canvas.width / 2, canvas.height / 2, true);
+
+    // 创建AI单位
+    for (let i = 0; i < 10; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        createUnit(x, y, false);
+    }
+
+    // 游戏循环
+    let lastTime = performance.now();
+    function gameLoop() {
+        const currentTime = performance.now();
+        const deltaTime = (currentTime - lastTime) / 1000;
+        lastTime = currentTime;
+
+        mainGroup.update(deltaTime);
+        requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
 }
 
 // 启动程序

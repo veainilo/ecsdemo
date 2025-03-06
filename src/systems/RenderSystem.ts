@@ -1,12 +1,12 @@
 import { ISystem, SystemPriority, QueryBuilder, Entity } from '../core/ECS/Types';
 import { World } from '../core/ECS/World';
-import { Position, Circle } from '../components';
+import { Position, Sprite, Unit } from '../components';
 
 export class RenderSystem implements ISystem {
   priority = SystemPriority.NORMAL;
   private query = new QueryBuilder()
     .with('position')
-    .with('circle')
+    .with('sprite')
     .build();
 
   constructor(private world: World) {}
@@ -22,15 +22,45 @@ export class RenderSystem implements ISystem {
     
     entities.forEach((entity: Entity) => {
       const position = entity.getComponent<Position>('position');
-      const circle = entity.getComponent<Circle>('circle');
+      const sprite = entity.getComponent<Sprite>('sprite');
+      const unit = entity.getComponent<Unit>('unit');
       
-      if (position && circle) {
-        ctx.beginPath();
-        ctx.arc(position.x, position.y, circle.radius, 0, Math.PI * 2);
-        ctx.fillStyle = circle.color;
-        ctx.fill();
-        ctx.closePath();
+      if (!position || !sprite) return;
+
+      ctx.save();
+      
+      // 移动到实体位置并应用旋转
+      ctx.translate(position.x, position.y);
+      ctx.rotate(sprite.rotation);
+      
+      // 绘制实体
+      ctx.fillStyle = sprite.color;
+      ctx.fillRect(-sprite.width / 2, -sprite.height / 2, sprite.width, sprite.height);
+      
+      // 如果是单位，绘制血条
+      if (unit) {
+        const healthBarWidth = 40;
+        const healthBarHeight = 4;
+        const healthPercentage = unit.health / unit.maxHealth;
+        
+        // 重置旋转以确保血条始终水平
+        ctx.rotate(-sprite.rotation);
+        
+        // 绘制血条背景
+        ctx.fillStyle = '#333';
+        ctx.fillRect(-healthBarWidth / 2, -sprite.height / 2 - 10, healthBarWidth, healthBarHeight);
+        
+        // 绘制当前血量
+        ctx.fillStyle = unit.isPlayer ? '#00FF00' : '#FF0000';
+        ctx.fillRect(
+          -healthBarWidth / 2,
+          -sprite.height / 2 - 10,
+          healthBarWidth * healthPercentage,
+          healthBarHeight
+        );
       }
+      
+      ctx.restore();
     });
   }
 } 
