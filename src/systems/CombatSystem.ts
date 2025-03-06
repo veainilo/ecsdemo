@@ -1,7 +1,7 @@
 import { ISystem, SystemPriority, QueryBuilder, Entity } from '../core/ECS/Types';
 import { World } from '../core/ECS/World';
 import { Position, Unit } from '../components';
-import { SkillSystem } from './SkillSystem';
+import { SkillSystem, SkillType } from './SkillSystem';
 
 export class CombatSystem implements ISystem {
   priority = SystemPriority.NORMAL;
@@ -49,9 +49,9 @@ export class CombatSystem implements ISystem {
         }
       });
 
-      // 如果找到敌人且在攻击范围内，发射箭矢
+      // 如果找到敌人且在攻击范围内，使用技能
       if (nearestEnemy) {
-        this.skillSystem.createMultipleArrows(entity, nearestEnemy);
+        this.skillSystem.castSkill(entity, nearestEnemy, SkillType.MULTI_ARROW);
         unit.currentCooldown = unit.attackCooldown;
       }
     });

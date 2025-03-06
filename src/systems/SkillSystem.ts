@@ -2,6 +2,31 @@ import { ISystem, SystemPriority, QueryBuilder, Entity } from '../core/ECS/Types
 import { World } from '../core/ECS/World';
 import { Position, Unit, Arrow, Velocity, Sprite, Trail } from '../components';
 
+// 技能类型枚举
+export enum SkillType {
+  MULTI_ARROW = 'MULTI_ARROW',
+  // 未来可以添加更多技能类型
+  // FIREBALL = 'FIREBALL',
+  // HEAL = 'HEAL',
+  // etc...
+}
+
+// 技能配置接口
+interface SkillConfig {
+  cooldown: number;
+  range: number;
+  damage: number;
+}
+
+// 技能配置映射
+const SKILL_CONFIGS: Record<SkillType, SkillConfig> = {
+  [SkillType.MULTI_ARROW]: {
+    cooldown: 1,
+    range: 200,
+    damage: 10
+  }
+};
+
 export class SkillSystem implements ISystem {
   priority = SystemPriority.NORMAL;
   private arrowQuery = new QueryBuilder()
@@ -12,86 +37,32 @@ export class SkillSystem implements ISystem {
 
   constructor(private world: World) { }
 
-  private findNextTarget(position: Position, currentTarget: Entity, hitEntities: Set<Entity>): Entity | null {
-    let nearestEnemy: Entity | null = null;
-    let minDistance = Infinity;
-    const maxBounceRange = 200;
-
-    const units = this.world.query(new QueryBuilder().with('position').with('unit').build());
-    units.forEach((entity: Entity) => {
-      if (hitEntities.has(entity)) return;
-
-      const entityPos = entity.getComponent<Position>('position');
-      if (!entityPos) return;
-
-      const dx = entityPos.x - position.x;
-      const dy = entityPos.y - position.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      if (distance <= maxBounceRange && distance < minDistance) {
-        const unit = entity.getComponent<Unit>('unit');
-        const currentTargetUnit = currentTarget.getComponent<Unit>('unit');
-
-        if (unit && currentTargetUnit && unit.isPlayer !== currentTargetUnit.isPlayer) {
-          minDistance = distance;
-          nearestEnemy = entity;
-        }
-      }
-    });
-
-    return nearestEnemy;
-  }
-
-  createArrow(source: Entity, target: Entity, bounceCount: number = 2): void {
+  // 使用技能的通用方法
+  castSkill(source: Entity, target: Entity, skillType: SkillType): void {
     const sourcePos = source.getComponent<Position>('position');
     const targetPos = target.getComponent<Position>('position');
     if (!sourcePos || !targetPos) return;
 
-    const dx = targetPos.x - sourcePos.x;
-    const dy = targetPos.y - sourcePos.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const arrowSpeed = 8;
+    const config = SKILL_CONFIGS[skillType];
+    if (!config) return;
 
-    const arrow = this.world.createEntity();
-    arrow.addComponent<Position>({ type: 'position', x: sourcePos.x, y: sourcePos.y });
-    arrow.addComponent<Velocity>({
-      type: 'velocity',
-      vx: (dx / distance) * arrowSpeed,
-      vy: (dy / distance) * arrowSpeed
-    });
-    arrow.addComponent<Arrow>({
-      type: 'arrow',
-      damage: 10,
-      speed: arrowSpeed,
-      targetEntity: target,
-      sourceEntity: source,
-      bounceCount: bounceCount,
-      maxBounceCount: bounceCount,
-      hitEntities: new Set([source])
-    });
-    arrow.addComponent<Sprite>({
-      type: 'sprite',
-      width: 30,
-      height: 6,
-      color: bounceCount > 0 ? '#FFA500' : '#FF4500',
-      rotation: Math.atan2(dy, dx)
-    });
-    arrow.addComponent<Trail>({
-      type: 'trail',
-      points: [{ x: sourcePos.x, y: sourcePos.y }],
-      maxPoints: 5
-    });
+    switch (skillType) {
+      case SkillType.MULTI_ARROW:
+        this.castMultiArrow(source, target, config);
+        break;
+      // 未来可以添加更多技能类型的处理
+    }
   }
 
-  createMultipleArrows(source: Entity, target: Entity): void {
+  // 多重箭矢技能
+  private castMultiArrow(source: Entity, target: Entity, config: SkillConfig): void {
     const spreadAngle = Math.PI / 6;
-
     const sourcePos = source.getComponent<Position>('position');
     const targetPos = target.getComponent<Position>('position');
     if (!sourcePos || !targetPos) return;
 
     // 中心箭矢
-    this.createArrow(source, target, 2);
+    this.createArrow(source, target, config, 2);
 
     // 两侧箭矢
     const baseAngle = Math.atan2(
@@ -121,8 +92,81 @@ export class SkillSystem implements ISystem {
         isPlayer: !source.getComponent<Unit>('unit')?.isPlayer
       });
 
-      this.createArrow(source, offsetTarget, 2);
+      this.createArrow(source, offsetTarget, config, 2);
     }
+  }
+
+  // 创建箭矢实体
+  private createArrow(source: Entity, target: Entity, config: SkillConfig, bounceCount: number = 2): void {
+    const sourcePos = source.getComponent<Position>('position');
+    const targetPos = target.getComponent<Position>('position');
+    if (!sourcePos || !targetPos) return;
+
+    const dx = targetPos.x - sourcePos.x;
+    const dy = targetPos.y - sourcePos.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const arrowSpeed = 8;
+
+    const arrow = this.world.createEntity();
+    arrow.addComponent<Position>({ type: 'position', x: sourcePos.x, y: sourcePos.y });
+    arrow.addComponent<Velocity>({
+      type: 'velocity',
+      vx: (dx / distance) * arrowSpeed,
+      vy: (dy / distance) * arrowSpeed
+    });
+    arrow.addComponent<Arrow>({
+      type: 'arrow',
+      damage: config.damage,
+      speed: arrowSpeed,
+      targetEntity: target,
+      sourceEntity: source,
+      bounceCount: bounceCount,
+      maxBounceCount: bounceCount,
+      hitEntities: new Set([source])
+    });
+    arrow.addComponent<Sprite>({
+      type: 'sprite',
+      width: 30,
+      height: 6,
+      color: bounceCount > 0 ? '#FFA500' : '#FF4500',
+      rotation: Math.atan2(dy, dx)
+    });
+    arrow.addComponent<Trail>({
+      type: 'trail',
+      points: [{ x: sourcePos.x, y: sourcePos.y }],
+      maxPoints: 5
+    });
+  }
+
+  // 寻找下一个弹射目标
+  private findNextTarget(position: Position, currentTarget: Entity, hitEntities: Set<Entity>): Entity | null {
+    let nearestEnemy: Entity | null = null;
+    let minDistance = Infinity;
+    const maxBounceRange = 200;
+
+    const units = this.world.query(new QueryBuilder().with('position').with('unit').build());
+    units.forEach((entity: Entity) => {
+      if (hitEntities.has(entity)) return;
+
+      const entityPos = entity.getComponent<Position>('position');
+      if (!entityPos) return;
+
+      const dx = entityPos.x - position.x;
+      const dy = entityPos.y - position.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance <= maxBounceRange && distance < minDistance) {
+        const unit = entity.getComponent<Unit>('unit');
+        const currentTargetUnit = currentTarget.getComponent<Unit>('unit');
+
+        if (unit && currentTargetUnit && unit.isPlayer !== currentTargetUnit.isPlayer) {
+          minDistance = distance;
+          nearestEnemy = entity;
+        }
+      }
+    });
+
+    return nearestEnemy;
   }
 
   update(deltaTime: number): void {
