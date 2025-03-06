@@ -2,6 +2,7 @@ import { ISystem, SystemPriority, QueryBuilder, Entity } from '../core/ECS/Types
 import { World } from '../core/ECS/World';
 import { Position, Arrow, Velocity, Sprite, Unit } from '../components';
 import { SkillFactory, SkillType, SkillConfig } from '../skills/SkillFactory';
+import { SkillRequest, SkillState } from '../components/SkillComponents';
 
 // 持续效果接口
 interface Effect {
@@ -16,6 +17,14 @@ interface Effect {
 
 export class SkillSystem implements ISystem {
   priority = SystemPriority.NORMAL;
+  private skillRequestQuery = new QueryBuilder()
+    .with('skill_request')
+    .build();
+
+  private skillStateQuery = new QueryBuilder()
+    .with('skill_state')
+    .build();
+
   private arrowQuery = new QueryBuilder()
     .with('position')
     .with('velocity')
@@ -28,14 +37,39 @@ export class SkillSystem implements ISystem {
     this.skillFactory = new SkillFactory(world);
   }
 
-  castSkill(source: Entity, target: Entity, skillType: SkillType): void {
-    const skill = this.skillFactory.getSkill(skillType);
-    if (skill) {
-      skill.cast(source, target);
-    }
-  }
-
   update(deltaTime: number): void {
+    // 处理技能请求
+    const requests = this.world.query(this.skillRequestQuery);
+    requests.forEach(entity => {
+      const request = entity.getComponent<SkillRequest>('skill_request');
+      if (!request) return;
+
+      // 执行技能
+      const skill = this.skillFactory.getSkill(request.skillType);
+      if (skill) {
+        skill.cast(request.sourceEntity, request.targetEntity);
+      }
+
+      // 移除请求组件
+      entity.removeComponent('skill_request');
+    });
+
+    // 更新技能状态
+    const skillStates = this.world.query(this.skillStateQuery);
+    skillStates.forEach(entity => {
+      const state = entity.getComponent<SkillState>('skill_state');
+      if (!state) return;
+
+      if (state.currentCooldown > 0) {
+        state.currentCooldown -= deltaTime;
+      }
+
+      // 如果冷却结束且不在引导中，移除状态组件
+      if (state.currentCooldown <= 0 && !state.isChanneling) {
+        entity.removeComponent('skill_state');
+      }
+    });
+
     // 更新所有技能实例
     for (const skill of this.skillFactory.getAllSkills()) {
       skill.update(deltaTime);

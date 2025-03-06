@@ -1,8 +1,8 @@
 import { ISystem, SystemPriority, QueryBuilder, Entity } from '../core/ECS/Types';
 import { World } from '../core/ECS/World';
-import { Position, Unit, Arrow, Velocity, Sprite, Trail } from '../components';
+import { Position, Unit } from '../components';
 import { SkillType } from '../skills/SkillFactory';
-import { SkillSystem } from './SkillSystem';
+import { SkillRequest } from '../components/SkillComponents';
 
 export class CombatSystem implements ISystem {
   priority = SystemPriority.NORMAL;
@@ -11,7 +11,7 @@ export class CombatSystem implements ISystem {
     .with('unit')
     .build();
 
-  constructor(private world: World, private skillSystem: SkillSystem) { }
+  constructor(private world: World) { }
 
   private selectSkill(unit: Unit): SkillType {
     // 如果生命值低于30%且是玩家单位，优先使用治疗光环
@@ -71,10 +71,15 @@ export class CombatSystem implements ISystem {
         }
       });
 
-      // 如果找到敌人且在攻击范围内，使用技能
+      // 如果找到敌人且在攻击范围内，发出技能请求
       if (nearestEnemy) {
         const skillType = this.selectSkill(unit);
-        this.skillSystem.castSkill(entity, nearestEnemy, skillType);
+        entity.addComponent<SkillRequest>({
+          type: 'skill_request',
+          skillType,
+          sourceEntity: entity,
+          targetEntity: nearestEnemy
+        });
         unit.currentCooldown = unit.attackCooldown;
       }
     });

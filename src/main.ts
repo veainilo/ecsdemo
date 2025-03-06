@@ -10,6 +10,7 @@ import {
     RenderSystem,
     SkillSystem
 } from './systems';
+import { EventSystem } from './core/ECS/EventSystem';
 
 // 创建世界实例
 const world = new World();
@@ -17,14 +18,18 @@ const world = new World();
 // 创建系统组
 const mainGroup = new SystemGroup(SystemGroupType.CUSTOM, SystemPriority.NORMAL);
 
+// 创建事件系统
+const eventSystem = new EventSystem();
+
 // 创建技能系统
 const skillSystem = new SkillSystem(world);
 
 // 添加系统到系统组
+mainGroup.addSystem('event', eventSystem);
 mainGroup.addSystem('movement', new MovementSystem(world));
 mainGroup.addSystem('player', new PlayerControlSystem(world));
 mainGroup.addSystem('ai', new AIControlSystem(world));
-mainGroup.addSystem('combat', new CombatSystem(world, skillSystem));
+mainGroup.addSystem('combat', new CombatSystem(world));
 mainGroup.addSystem('skill', skillSystem);
 mainGroup.addSystem('render', new RenderSystem(world));
 
