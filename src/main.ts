@@ -11,6 +11,7 @@ import {
     SkillSystem
 } from './systems';
 import { EventSystem } from './core/ECS/EventSystem';
+import { ProjectileSystem } from './systems/ProjectileSystem';
 
 // 创建世界实例
 const world = new World();
@@ -24,6 +25,9 @@ const eventSystem = new EventSystem();
 // 创建技能系统
 const skillSystem = new SkillSystem(world);
 
+// 创建投射物系统
+const projectileSystem = new ProjectileSystem(world, eventSystem);
+
 // 添加系统到系统组
 mainGroup.addSystem('event', eventSystem);
 mainGroup.addSystem('movement', new MovementSystem(world));
@@ -31,6 +35,7 @@ mainGroup.addSystem('player', new PlayerControlSystem(world));
 mainGroup.addSystem('ai', new AIControlSystem(world));
 mainGroup.addSystem('combat', new CombatSystem(world));
 mainGroup.addSystem('skill', skillSystem);
+mainGroup.addSystem('projectile', projectileSystem);
 mainGroup.addSystem('render', new RenderSystem(world));
 
 // 创建单位

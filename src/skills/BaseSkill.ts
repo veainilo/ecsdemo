@@ -5,8 +5,8 @@ import { Position } from '../components';
 export interface SkillConfig {
   cooldown: number;
   range: number;
-  damage?: number;
   aoeRadius?: number;
+  damage?: number;
   healing?: number;
   duration?: number;
   projectileSpeed?: number;
