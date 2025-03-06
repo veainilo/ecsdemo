@@ -5,6 +5,7 @@ import { Position, Unit, Arrow, Velocity, Sprite, Trail } from '../components';
 // 技能类型枚举
 export enum SkillType {
   MULTI_ARROW = 'MULTI_ARROW',
+  THUNDER_STRIKE = 'THUNDER_STRIKE',
   // 未来可以添加更多技能类型
   // FIREBALL = 'FIREBALL',
   // HEAL = 'HEAL',
@@ -16,6 +17,7 @@ interface SkillConfig {
   cooldown: number;
   range: number;
   damage: number;
+  aoeRadius?: number;
 }
 
 // 技能配置映射
@@ -24,6 +26,12 @@ const SKILL_CONFIGS: Record<SkillType, SkillConfig> = {
     cooldown: 1,
     range: 200,
     damage: 10
+  },
+  [SkillType.THUNDER_STRIKE]: {
+    cooldown: 3,
+    range: 300,
+    damage: 30,
+    aoeRadius: 50
   }
 };
 
@@ -34,6 +42,8 @@ export class SkillSystem implements ISystem {
     .with('velocity')
     .with('arrow')
     .build();
+
+  private effectDurations: Map<Entity, number> = new Map();
 
   constructor(private world: World) { }
 
@@ -50,7 +60,9 @@ export class SkillSystem implements ISystem {
       case SkillType.MULTI_ARROW:
         this.castMultiArrow(source, target, config);
         break;
-      // 未来可以添加更多技能类型的处理
+      case SkillType.THUNDER_STRIKE:
+        this.castThunderStrike(source, target, config);
+        break;
     }
   }
 
@@ -94,6 +106,68 @@ export class SkillSystem implements ISystem {
 
       this.createArrow(source, offsetTarget, config, 2);
     }
+  }
+
+  // 雷击技能
+  private castThunderStrike(source: Entity, target: Entity, config: SkillConfig): void {
+    const targetPos = target.getComponent<Position>('position');
+    if (!targetPos) return;
+
+    const aoeRadius = config.aoeRadius ?? 50;
+
+    // 创建视觉效果实体
+    const effect = this.world.createEntity();
+    effect.addComponent<Position>({ 
+      type: 'position',
+      x: targetPos.x,
+      y: targetPos.y
+    });
+    effect.addComponent<Sprite>({
+      type: 'sprite',
+      width: aoeRadius * 2,
+      height: aoeRadius * 2,
+      color: '#4444FF',
+      rotation: 0
+    });
+
+    // 添加轨迹效果，模拟闪电
+    effect.addComponent<Trail>({
+      type: 'trail',
+      points: [
+        { x: targetPos.x, y: targetPos.y - aoeRadius },
+        { x: targetPos.x, y: targetPos.y }
+      ],
+      maxPoints: 2
+    });
+
+    // 记录效果持续时间
+    this.effectDurations.set(effect, 0.2);
+
+    // 对范围内的所有敌人造成伤害
+    const units = this.world.query(new QueryBuilder().with('position').with('unit').build());
+    units.forEach((entity: Entity) => {
+      if (entity === source) return;
+
+      const unitPos = entity.getComponent<Position>('position');
+      const unit = entity.getComponent<Unit>('unit');
+      if (!unitPos || !unit) return;
+
+      const dx = unitPos.x - targetPos.x;
+      const dy = unitPos.y - targetPos.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      // 在AOE范围内且是敌方单位
+      if (distance <= aoeRadius && 
+          unit.isPlayer !== source.getComponent<Unit>('unit')?.isPlayer) {
+        // 造成伤害
+        unit.health -= config.damage;
+        
+        // 如果单位死亡，销毁它
+        if (unit.health <= 0) {
+          entity.destroy();
+        }
+      }
+    });
   }
 
   // 创建箭矢实体
@@ -170,6 +244,17 @@ export class SkillSystem implements ISystem {
   }
 
   update(deltaTime: number): void {
+    // 更新技能效果持续时间
+    this.effectDurations.forEach((duration, entity) => {
+      const newDuration = duration - deltaTime;
+      if (newDuration <= 0) {
+        entity.destroy();
+        this.effectDurations.delete(entity);
+      } else {
+        this.effectDurations.set(entity, newDuration);
+      }
+    });
+
     // 处理箭矢移动和命中
     const arrows = this.world.query(this.arrowQuery);
     arrows.forEach((entity: Entity) => {

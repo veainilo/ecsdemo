@@ -51,7 +51,9 @@ export class CombatSystem implements ISystem {
 
       // 如果找到敌人且在攻击范围内，使用技能
       if (nearestEnemy) {
-        this.skillSystem.castSkill(entity, nearestEnemy, SkillType.MULTI_ARROW);
+        // 随机选择技能
+        const skillType = Math.random() < 0.7 ? SkillType.MULTI_ARROW : SkillType.THUNDER_STRIKE;
+        this.skillSystem.castSkill(entity, nearestEnemy, skillType);
         unit.currentCooldown = unit.attackCooldown;
       }
     });
