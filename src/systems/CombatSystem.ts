@@ -1,7 +1,8 @@
 import { ISystem, SystemPriority, QueryBuilder, Entity } from '../core/ECS/Types';
 import { World } from '../core/ECS/World';
-import { Position, Unit } from '../components';
-import { SkillSystem, SkillType } from './SkillSystem';
+import { Position, Unit, Arrow, Velocity, Sprite, Trail } from '../components';
+import { SkillType } from '../skills/SkillFactory';
+import { SkillSystem } from './SkillSystem';
 
 export class CombatSystem implements ISystem {
   priority = SystemPriority.NORMAL;
