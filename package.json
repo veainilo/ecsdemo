@@ -1,12 +1,12 @@
 {
   "name": "ecs",
   "version": "1.0.0",
-  "description": "A Node.js project",
-  "main": "src/index.js",
+  "description": "A Node.js project with ECS demo",
+  "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
-    "test": "jest"
+    "dev": "vite serve src",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "keywords": [],
   "author": "",
@@ -14,11 +14,9 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "nodemon": "^3.0.1",
-    "vite": "^6.2.0"
-  },
-  "dependencies": {
-    "@types/node": "^22.13.9",
+    "vite": "^5.1.4",
+    "@types/node": "^20.11.20",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.2"
+    "typescript": "^5.3.3"
   }
 }

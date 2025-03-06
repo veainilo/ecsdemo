@@ -1,83 +1,115 @@
 import { World } from './ECS/World';
 import { SystemGroup } from './ECS/SystemGroup';
 import { Position, Velocity, Circle } from './components';
+import { SystemGroupType, SystemPriority, ISystem, QueryBuilder } from './ECS/Types';
 
 // 创建世界实例
 const world = new World();
 
 // 创建系统组
-const mainGroup = new SystemGroup();
+const mainGroup = new SystemGroup(SystemGroupType.CUSTOM, SystemPriority.NORMAL);
 
 // 移动系统
-const movementSystem = (world: World) => {
-  const entities = world.getEntitiesWith(['position', 'velocity']);
-  
-  entities.forEach(entity => {
-    const position = world.getComponent<Position>(entity, 'position');
-    const velocity = world.getComponent<Velocity>(entity, 'velocity');
+class MovementSystem implements ISystem {
+  priority = SystemPriority.NORMAL;
+  private query = new QueryBuilder()
+    .with('position')
+    .with('velocity')
+    .build();
+
+  update(deltaTime: number): void {
+    const entities = world.query(this.query);
     
-    position.x += velocity.vx;
-    position.y += velocity.vy;
-  });
-};
+    entities.forEach(entity => {
+      const position = entity.getComponent<Position>('position');
+      const velocity = entity.getComponent<Velocity>('velocity');
+      
+      if (position && velocity) {
+        position.x += velocity.vx;
+        position.y += velocity.vy;
+      }
+    });
+  }
+}
 
 // 边界碰撞系统
-const bounceSystem = (world: World) => {
-  const entities = world.getEntitiesWith(['position', 'velocity', 'circle']);
-  const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-  const width = canvas.width;
-  const height = canvas.height;
+class BounceSystem implements ISystem {
+  priority = SystemPriority.NORMAL;
+  private query = new QueryBuilder()
+    .with('position')
+    .with('velocity')
+    .with('circle')
+    .build();
 
-  entities.forEach(entity => {
-    const position = world.getComponent<Position>(entity, 'position');
-    const velocity = world.getComponent<Velocity>(entity, 'velocity');
-    const circle = world.getComponent<Circle>(entity, 'circle');
+  update(deltaTime: number): void {
+    const entities = world.query(this.query);
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+    const width = canvas.width;
+    const height = canvas.height;
 
-    if (position.x - circle.radius <= 0 || position.x + circle.radius >= width) {
-      velocity.vx *= -1;
-      position.x = Math.max(circle.radius, Math.min(width - circle.radius, position.x));
-    }
+    entities.forEach(entity => {
+      const position = entity.getComponent<Position>('position');
+      const velocity = entity.getComponent<Velocity>('velocity');
+      const circle = entity.getComponent<Circle>('circle');
 
-    if (position.y - circle.radius <= 0 || position.y + circle.radius >= height) {
-      velocity.vy *= -1;
-      position.y = Math.max(circle.radius, Math.min(height - circle.radius, position.y));
-    }
-  });
-};
+      if (position && velocity && circle) {
+        if (position.x - circle.radius <= 0 || position.x + circle.radius >= width) {
+          velocity.vx *= -1;
+          position.x = Math.max(circle.radius, Math.min(width - circle.radius, position.x));
+        }
+
+        if (position.y - circle.radius <= 0 || position.y + circle.radius >= height) {
+          velocity.vy *= -1;
+          position.y = Math.max(circle.radius, Math.min(height - circle.radius, position.y));
+        }
+      }
+    });
+  }
+}
 
 // 渲染系统
-const renderSystem = (world: World) => {
-  const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-  const ctx = canvas.getContext('2d')!;
-  
-  // 清空画布
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  const entities = world.getEntitiesWith(['position', 'circle']);
-  
-  entities.forEach(entity => {
-    const position = world.getComponent<Position>(entity, 'position');
-    const circle = world.getComponent<Circle>(entity, 'circle');
+class RenderSystem implements ISystem {
+  priority = SystemPriority.NORMAL;
+  private query = new QueryBuilder()
+    .with('position')
+    .with('circle')
+    .build();
+
+  update(deltaTime: number): void {
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d')!;
     
-    ctx.beginPath();
-    ctx.arc(position.x, position.y, circle.radius, 0, Math.PI * 2);
-    ctx.fillStyle = circle.color;
-    ctx.fill();
-    ctx.closePath();
-  });
-};
+    // 清空画布
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const entities = world.query(this.query);
+    
+    entities.forEach(entity => {
+      const position = entity.getComponent<Position>('position');
+      const circle = entity.getComponent<Circle>('circle');
+      
+      if (position && circle) {
+        ctx.beginPath();
+        ctx.arc(position.x, position.y, circle.radius, 0, Math.PI * 2);
+        ctx.fillStyle = circle.color;
+        ctx.fill();
+        ctx.closePath();
+      }
+    });
+  }
+}
 
 // 添加系统到系统组
-mainGroup.addSystem(movementSystem);
-mainGroup.addSystem(bounceSystem);
-mainGroup.addSystem(renderSystem);
+mainGroup.addSystem('movement', new MovementSystem());
+mainGroup.addSystem('bounce', new BounceSystem());
+mainGroup.addSystem('render', new RenderSystem());
 
 // 创建小球
 function createBall(x: number, y: number, vx: number, vy: number, radius: number, color: string) {
   const entity = world.createEntity();
-  world.addComponent(entity, 'position', { x, y });
-  world.addComponent(entity, 'velocity', { vx, vy });
-  world.addComponent(entity, 'circle', { radius, color });
+  entity.addComponent<Position>({ type: 'position', x, y });
+  entity.addComponent<Velocity>({ type: 'velocity', vx, vy });
+  entity.addComponent<Circle>({ type: 'circle', radius, color });
   return entity;
 }
 
@@ -103,8 +135,13 @@ function init() {
   }
   
   // 游戏循环
+  let lastTime = performance.now();
   function gameLoop() {
-    mainGroup.update(world);
+    const currentTime = performance.now();
+    const deltaTime = (currentTime - lastTime) / 1000;
+    lastTime = currentTime;
+    
+    mainGroup.update(deltaTime);
     requestAnimationFrame(gameLoop);
   }
   
