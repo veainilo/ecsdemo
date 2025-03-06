@@ -1,6 +1,6 @@
 import { ISystem, SystemPriority, QueryBuilder, Entity } from '../core/ECS/Types';
 import { World } from '../core/ECS/World';
-import { Position, Sprite, Unit } from '../components';
+import { Position, Sprite, Unit, Trail } from '../components';
 
 export class RenderSystem implements ISystem {
   priority = SystemPriority.NORMAL;
@@ -20,6 +20,30 @@ export class RenderSystem implements ISystem {
     
     const entities = this.world.query(this.query);
     
+    // 先渲染轨迹
+    entities.forEach((entity: Entity) => {
+      const position = entity.getComponent<Position>('position');
+      const sprite = entity.getComponent<Sprite>('sprite');
+      const trail = entity.getComponent<Trail>('trail');
+      
+      if (!position || !sprite || !trail || trail.points.length < 2) return;
+
+      // 绘制轨迹
+      ctx.beginPath();
+      ctx.moveTo(trail.points[0].x, trail.points[0].y);
+      
+      for (let i = 1; i < trail.points.length; i++) {
+        ctx.lineTo(trail.points[i].x, trail.points[i].y);
+      }
+      
+      ctx.strokeStyle = sprite.color;
+      ctx.lineWidth = sprite.height * 0.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    });
+
+    // 然后渲染实体
     entities.forEach((entity: Entity) => {
       const position = entity.getComponent<Position>('position');
       const sprite = entity.getComponent<Sprite>('sprite');

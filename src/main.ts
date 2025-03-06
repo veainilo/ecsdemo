@@ -7,7 +7,8 @@ import {
     PlayerControlSystem,
     AIControlSystem,
     CombatSystem,
-    RenderSystem
+    RenderSystem,
+    SkillSystem
 } from './systems';
 
 // 创建世界实例
@@ -16,11 +17,15 @@ const world = new World();
 // 创建系统组
 const mainGroup = new SystemGroup(SystemGroupType.CUSTOM, SystemPriority.NORMAL);
 
+// 创建技能系统
+const skillSystem = new SkillSystem(world);
+
 // 添加系统到系统组
 mainGroup.addSystem('movement', new MovementSystem(world));
 mainGroup.addSystem('player', new PlayerControlSystem(world));
 mainGroup.addSystem('ai', new AIControlSystem(world));
-mainGroup.addSystem('combat', new CombatSystem(world));
+mainGroup.addSystem('combat', new CombatSystem(world, skillSystem));
+mainGroup.addSystem('skill', skillSystem);
 mainGroup.addSystem('render', new RenderSystem(world));
 
 // 创建单位
